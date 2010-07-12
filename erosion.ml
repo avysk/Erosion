@@ -3,14 +3,15 @@ Random.self_init ()
 type cell = Full | Empty | OutOfBounds
 type kind = Earth | Sea | Island | Lake | None
 
-let xsize = 4
-let ysize = 3
+let xsize = 200
+let ysize = 120
+let mult = 5
 
 let universe = Array.init ysize (function
                                    | 0 -> Array.make xsize Full
                                    | _ -> Array.make xsize Empty)
 
-let status = Array.make_matrix ysize xsize None
+let status () = Array.make_matrix xsize ysize None
 
 let get_cell x y =
   try universe.(y).(x)
@@ -24,10 +25,10 @@ let erode () =
   let x = Random.int xsize in
   let y = Random.int ysize in
   match get_cell x y with
-    | OutOfBounds -> ()
-    | Empty -> ()
+    | OutOfBounds -> false
+    | Empty -> false
     | Full ->
-        if y = 0 then put_cell x (y + 1) Full
+        if y = 0 then begin put_cell x (y + 1) Full; true end
         else
           let d1 = Random.int 2 * 2 - 1 in
           let d2 = Random.int 2 in
@@ -35,45 +36,56 @@ let erode () =
           let newy = y + d1 * (1 - d2) in
           let cell = get_cell newx newy in
             match cell with
-              | Full -> ()
-              | OutOfBounds -> put_cell x y Empty
-              | Empty -> put_cell x y Empty ; put_cell newx newy Full
+              | Full -> false
+              | OutOfBounds -> put_cell x y Empty; true
+              | Empty -> put_cell x y Empty ; put_cell newx newy Full; true
 
-let rec find_component current found what =
+let rec find_component current what status mark =
   match current with
-    | [] -> found
-    | (x_cur, y_cur) as hd :: tl ->
+    | [] -> status
+    | (x_cur, y_cur) :: tl ->
+      let () = status.(x_cur).(y_cur) <- mark in
       let neighbours = [ (x_cur - 1, y_cur);
 			 (x_cur + 1, y_cur);
 			 (x_cur, y_cur - 1);
 			 (x_cur, y_cur + 1) ] in
       let check (x, y) =
-	not (List.mem (x, y) found) &&
-	  not (List.mem (x, y) current) &&
-	  get_cell x y = what in
+	get_cell x y = what &&
+	status.(x).(y) != mark &&
+	not (List.mem (x, y) current) in
       let to_add = List.filter check neighbours in
-      find_component (tl @ to_add) (hd :: found) what
+      find_component (tl @ to_add)  what status mark
 
-let find_earth () = find_component [(0,0)] [] Full
+let find_earth () = find_component [(0,0)] Full (status ()) Earth
 
-let rec find_component component =
-  let x_cur, y_cur = List.hd component in
-  let x_dec = x_cur - 1 in
-  let x_inc = x_cur + 1 in
-  let y_dec = y_cur - 1 in
-  let y_inc = y_cur + 1 in
-  let check x y l = not (List.mem (x, y) l) && get_cell x y = Full in
-  let tmp1 =
-    if check x_dec y_dec component
-    then find_component ((x_dec, y_dec) :: component)
-    else component in
-  let tmp2 =
-    if check x_dec y_inc tmp1
-    then find_component ((x_dec, y_inc) :: tmp1)
-    else tmp1 in
-  let tmp3 = 
-    if check x_inc y_dec tmp2
-    then find_component ((x_inc, y_dec) :: tmp2)
-    else tmp2 in
-    tmp3 
+let dark_green = Graphics.rgb 0 128 0
 
+let is_island x y =
+  get_cell (x-1) y = Full ||
+  get_cell (x+1) y = Full ||
+  get_cell x (y-1) = Full ||
+  get_cell x (y+1) = Full
+
+let paint_universe () =
+  let status = find_earth () in
+  for i = 0 to xsize - 1 do
+    for j = 0 to ysize - 1 do
+      Graphics.set_color (
+	if status.(i).(j) = Earth then dark_green else
+	  if get_cell i j = Full then begin
+	    if is_island i j then Graphics.green else Graphics.yellow
+	  end
+	  else Graphics.blue) ;
+      Graphics.fill_rect (mult*i) (mult*j) mult mult
+    done
+  done;
+  Graphics.synchronize ()
+
+let rec iterate () =
+  if erode () then paint_universe () else () ;
+  iterate ()
+
+;;
+let () = Graphics.open_graph (" " ^ (string_of_int (mult*xsize)) ^ "x" ^ (string_of_int (mult*ysize))) in
+let () = Graphics.auto_synchronize false in
+iterate ()
