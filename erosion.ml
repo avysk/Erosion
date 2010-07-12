@@ -1,4 +1,4 @@
-Random.self_init () ;;
+Random.self_init ()
 
 type cell = Full | Empty | OutOfBounds
 type kind = Earth | Sea | Island | Lake | None
@@ -10,7 +10,7 @@ let universe = Array.init ysize (function
                                    | 0 -> Array.make xsize Full
                                    | _ -> Array.make xsize Empty)
 
-let status = Array.make ysize (Array.make xsize None)
+let status = Array.make_matrix ysize xsize None
 
 let get_cell x y =
   try universe.(y).(x)
@@ -20,7 +20,7 @@ let put_cell x y value =
   try universe.(y).(x) <- value
   with Invalid_argument _ -> ()
 
-let erode _ =
+let erode () =
   let x = Random.int xsize in
   let y = Random.int ysize in
   match get_cell x y with
@@ -39,6 +39,23 @@ let erode _ =
               | OutOfBounds -> put_cell x y Empty
               | Empty -> put_cell x y Empty ; put_cell newx newy Full
 
+let rec find_component current found what =
+  match current with
+    | [] -> found
+    | (x_cur, y_cur) as hd :: tl ->
+      let neighbours = [ (x_cur - 1, y_cur);
+			 (x_cur + 1, y_cur);
+			 (x_cur, y_cur - 1);
+			 (x_cur, y_cur + 1) ] in
+      let check (x, y) =
+	not (List.mem (x, y) found) &&
+	  not (List.mem (x, y) current) &&
+	  get_cell x y = what in
+      let to_add = List.filter check neighbours in
+      find_component (tl @ to_add) (hd :: found) what
+
+let find_earth () = find_component [(0,0)] [] Full
+
 let rec find_component component =
   let x_cur, y_cur = List.hd component in
   let x_dec = x_cur - 1 in
@@ -48,15 +65,15 @@ let rec find_component component =
   let check x y l = not (List.mem (x, y) l) && get_cell x y = Full in
   let tmp1 =
     if check x_dec y_dec component
-    then find_component (x_dec, y_dec) :: component
+    then find_component ((x_dec, y_dec) :: component)
     else component in
   let tmp2 =
     if check x_dec y_inc tmp1
-    then find_component (x_dec, y_inc) :: tmp1
+    then find_component ((x_dec, y_inc) :: tmp1)
     else tmp1 in
   let tmp3 = 
     if check x_inc y_dec tmp2
-    then find_component (x_inc, y_dec) :: tmp2
+    then find_component ((x_inc, y_dec) :: tmp2)
     else tmp2 in
     tmp3 
 
