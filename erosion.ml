@@ -19,6 +19,12 @@ let universe = Array.init ysize (function
                                    | 0 -> Array.make xsize Full
                                    | _ -> Array.make xsize Empty)
 
+let colors = Array.init (square + 1) (fun d ->
+  if d < half then Graphics.rgb 0 0 (63 + 192 * 2 * d / square)
+  else if d = half then Graphics.rgb 192 192 0
+  else if d = half1 then Graphics.rgb 255 255 0
+  else Graphics.rgb 0 (63 + 192 * 2 * (square - d) / square) 0)
+
 let get_cell x y =
   if x > xsize - 1 || y > ysize - 1 || x < 0 || y < 0 then OutOfBounds
   else universe.(y).(x)
@@ -56,18 +62,12 @@ let rec calc_ad d x y i j =
     else d'
   end
 
-
 let calculate_average_density x y =
   calc_ad 0 x y (-scale) (-scale)
 
 let get_average_color x y =
   let d = calculate_average_density x y in
-  if d = half then Graphics.rgb 192 192 0
-  else if d = half1 then Graphics.rgb 255 255 0 else begin
-    if d < half
-    then Graphics.rgb 0 0 (63 + 192 * 2 * d / square)
-    else Graphics.rgb 0 (63 + 192 * 2 * (square - d)/square) 0
-  end
+  colors.(d)
 
 let paint_universe x y =
   if x >= 0 && y >= 0 && x < xsize && y < ysize then begin
