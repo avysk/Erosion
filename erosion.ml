@@ -4,14 +4,16 @@ type cell = Full | Empty | OutOfBounds
 type kind = Earth | Sea | Island | Lake | None
 
 let xsize = 90
+let xsize' = xsize - 1
 let ysize = 40
+let ysize' = ysize - 1
 let mult = 15
 
-let scale = 3
+let filter = 3
 
-let div = 2 * scale + 1
-
-let square = div * div
+let filter1 = filter + 1
+let side = 2 * filter + 1
+let square = side * side
 let half = square / 2
 let half1 = half + 1
 
@@ -26,11 +28,11 @@ let colors = Array.init (square + 1) (fun d ->
   else Graphics.rgb 0 (63 + 192 * 2 * (square - d) / square) 0)
 
 let get_cell x y =
-  if x > xsize - 1 || y > ysize - 1 || x < 0 || y < 0 then OutOfBounds
+  if x > xsize' || y > ysize' || x < 0 || y < 0 then OutOfBounds
   else universe.(y).(x)
 
 let put_cell x y value =
-  if x > xsize - 1 || y > ysize - 1 || x < 0 || y < 0
+  if x > xsize' || y > ysize' || x < 0 || y < 0
   then ()
   else universe.(y).(x) <- value
 
@@ -54,16 +56,16 @@ let rec erode () =
               | Empty -> put_cell x y Empty ; put_cell newx newy Full; (x,y)
 
 let rec calc_ad d x y i j =
-  let d' = d + (if (y+j) < 0 or (get_cell (x+i) (y+j) = Full) then 1 else 0) in
-  if i < scale
+  let d' = d + if y + j < 0 || get_cell (x + i) (y + j) = Full then 1 else 0 in
+  if i < filter
   then calc_ad d' x y (i+1) j
   else begin
-    if j < scale then calc_ad d' x y (-scale) (j+1)
+    if j < filter then calc_ad d' x y (-filter) (j+1)
     else d'
   end
 
 let calculate_average_density x y =
-  calc_ad 0 x y (-scale) (-scale)
+  calc_ad 0 x y (-filter) (-filter)
 
 let get_average_color x y =
   let d = calculate_average_density x y in
@@ -85,8 +87,8 @@ let paint_full_universe () =
 
 let rec iterate () =
   let i, j = erode () in
-  for k = i - scale - 1 to i + scale + 1 do
-    for l = j - scale - 1 to j + scale + 1 do
+  for k = i - filter1 to i + filter1 do
+    for l = j - filter1 to j + filter1 do
       paint_universe k l
     done
   done;
